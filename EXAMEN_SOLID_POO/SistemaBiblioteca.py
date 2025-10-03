@@ -1,7 +1,3 @@
-"""
-Sistema de Biblioteca Refactorizado - Implementación OCP
-"""
-
 from biblioteca_examen import Libro, Prestamo
 from busqueda import (
     Busqueda,
