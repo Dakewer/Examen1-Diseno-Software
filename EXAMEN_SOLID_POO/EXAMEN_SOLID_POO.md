@@ -120,10 +120,10 @@ class Estudiante(Usuario):
 _________________________________________________________________
 LSP dice que las clase hijas pueden sustituir a la clase padre 
 
-En el código. Debido a que Estudiantes hereda de usuario,
-al usar su método calcular_limite_prestamo, se espera un 
-Usuario, pero en lugar de eso recibe un Estudiante y debe de
-ser válido
+En este código un Estudiante puede sustituir a un Usuario porque
+al heredar, este no cambia el comportamiento o atributos. Por lo 
+tanto se puede usar en cualquier contexto Estudiante para 
+reemplazar a Usuario 
 _________________________________________________________________
 ```
 
@@ -158,17 +158,23 @@ class IGestionBiblioteca:
 ```
 _________________________________________________________________
 
+Porque todo lo que dependa de esta interfaz se verá obligado a 
+implementar muchos métodos innecesarios. Esto a su vez también 
+podría crear una violación a SRP pues al querer hacer una clase
+concreta, esta forzosamente deberá tener más de una responsabilidad
 _________________________________________________________________
 ```
 
 **b) (5 pts)** Propón cómo segregar esta interfaz:
 
 ```
-Interface 1: _____________ - Métodos: _________________________
+Interface 1: IGestionLibros - Métodos: agregar_libro(self), buscar_libro(self)
 
-Interface 2: _____________ - Métodos: _________________________
+Interface 2: IGestionPrestamos - Métodos: realizar_prestamos(self)
 
-Interface 3: _____________ - Métodos: _________________________
+Interface 3: IReportes - Métodos: generar_reporte(self)
+
+Interface 4: IBackUp - Métodos: hacer_backUp(self)
 ```
 
 ---

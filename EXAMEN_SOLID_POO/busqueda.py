@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from biblioteca_examen import Libro
 
 class Busqueda(ABC):
+    @abstractmethod
     def cumple_criterio(self, libro: Libro, valor: str) -> bool:
         pass
 

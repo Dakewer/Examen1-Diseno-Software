@@ -1,11 +1,14 @@
 from biblioteca_examen import Libro, Prestamo
 from busqueda import (
-    Busqueda,
     BusquedaPorTitulo,
     BusquedaPorAutor,
     BusquedaPorISBN,
     BusquedaPorDisponibilidad
 )
+
+from ValidadorBiblioteca import ValidadorBiblioteca
+from RepositorioBiblioteca import RepositorioBiblioteca
+from ServicioNotificaciones import ServicioNotificaciones
 
 
 class SistemaBiblioteca:
@@ -16,8 +19,11 @@ class SistemaBiblioteca:
         self.contador_prestamo = 1
         self.archivo = "biblioteca.txt"
 
-        # Mapeo de estrategias de búsqueda - FÁCIL DE EXTENDER
-        self.Busqueda = {
+        self.validador = ValidadorBiblioteca()
+        self.repositorio = RepositorioBiblioteca()
+        self.notificador = ServicioNotificaciones()
+
+        self.estrategias_busqueda = {
             "titulo": BusquedaPorTitulo(),
             "autor": BusquedaPorAutor(),
             "isbn": BusquedaPorISBN(),
@@ -25,17 +31,15 @@ class SistemaBiblioteca:
         }
 
     def agregar_libro(self, titulo, autor, isbn):
-        if not titulo or len(titulo) < 2:
-            return "Error: Título inválido"
-        if not autor or len(autor) < 3:
-            return "Error: Autor inválido"
-        if not isbn or len(isbn) < 10:
-            return "Error: ISBN inválido"
+        error = self.validador.validar_libro(titulo, autor, isbn)
+        if error:
+            return error
 
         libro = Libro(self.contador_libro, titulo, autor, isbn)
         self.libros.append(libro)
         self.contador_libro += 1
-        self._guardar_en_archivo()
+
+        self.repositorio.guardar_estado(self.libros, self.prestamos)
 
         return f"Libro '{titulo}' agregado exitosamente"
 
@@ -54,20 +58,15 @@ class SistemaBiblioteca:
         return resultados
 
     def realizar_prestamo(self, libro_id, usuario):
-        if not usuario or len(usuario) < 3:
-            return "Error: Nombre de usuario inválido"
+        error_usuario = self.validador.validar_usuario(usuario)
+        if error_usuario:
+            return error_usuario
 
-        libro = None
-        for l in self.libros:
-            if l.id == libro_id:
-                libro = l
-                break
+        libro = self.repositorio.buscar_libro_por_id(self.libros, libro_id)
 
-        if not libro:
-            return "Error: Libro no encontrado"
-
-        if not libro.disponible:
-            return "Error: Libro no disponible"
+        error_prestamo = self.validador.validar_prestamo(libro, usuario)
+        if error_prestamo:
+            return error_prestamo
 
         from datetime import datetime
         prestamo = Prestamo(
@@ -80,17 +79,13 @@ class SistemaBiblioteca:
         self.prestamos.append(prestamo)
         self.contador_prestamo += 1
         libro.disponible = False
-        self._guardar_en_archivo()
-        self._enviar_notificacion(usuario, libro.titulo)
+        self.repositorio.guardar_estado(self.libros, self.prestamos)
+        self.notificador.enviar_notificacion_prestamo(usuario, libro.titulo)
 
         return f"Préstamo realizado a {usuario}"
 
     def devolver_libro(self, prestamo_id):
-        prestamo = None
-        for p in self.prestamos:
-            if p.id == prestamo_id:
-                prestamo = p
-                break
+        prestamo = self.repositorio.buscar_prestamo_por_id(self.prestamos, prestamo_id)
 
         if not prestamo:
             return "Error: Préstamo no encontrado"
@@ -98,13 +93,16 @@ class SistemaBiblioteca:
         if prestamo.devuelto:
             return "Error: Libro ya devuelto"
 
-        for libro in self.libros:
-            if libro.id == prestamo.libro_id:
-                libro.disponible = True
-                break
+        libro = self.repositorio.buscar_libro_por_id(self.libros, prestamo.libro_id)
+        if libro:
+            libro.disponible = True
 
         prestamo.devuelto = True
-        self._guardar_en_archivo()
+
+        self.repositorio.guardar_estado(self.libros, self.prestamos)
+
+        if libro:
+            self.notificador.enviar_notificacion_devolucion(prestamo.usuario, libro.titulo)
 
         return "Libro devuelto exitosamente"
 
@@ -132,3 +130,42 @@ class SistemaBiblioteca:
 
     def _enviar_notificacion(self, usuario, libro):
         print(f"[NOTIFICACIÓN] {usuario}: Préstamo de '{libro}'")
+
+
+"""
+
+        BLOQUE  MAIN NO TOCAR
+
+"""
+
+def main():
+    sistema = SistemaBiblioteca()
+
+    print("=== AGREGANDO LIBROS ===")
+    print(sistema.agregar_libro("Cien Años de Soledad", "Gabriel García Márquez", "9780060883287"))
+    print(sistema.agregar_libro("El Principito", "Antoine de Saint-Exupéry", "9780156012195"))
+    print(sistema.agregar_libro("1984", "George Orwell", "9780451524935"))
+
+    print("\n=== BÚSQUEDA POR AUTOR ===")
+    resultados = sistema.buscar_libro("autor", "Garcia")
+    for libro in resultados:
+        print(f"- {libro.titulo} por {libro.autor}")
+
+    print("\n=== REALIZAR PRÉSTAMO ===")
+    print(sistema.realizar_prestamo(1, "Juan Pérez"))
+
+    print("\n=== LIBROS DISPONIBLES ===")
+    disponibles = sistema.obtener_libros_disponibles()
+    for libro in disponibles:
+        print(f"- {libro.titulo}")
+
+    print("\n=== DEVOLVER LIBRO ===")
+    print(sistema.devolver_libro(1))
+
+    print("\n=== PRÉSTAMOS ACTIVOS ===")
+    activos = sistema.obtener_prestamos_activos()
+    print(f"Total de préstamos activos: {len(activos)}")
+
+
+if __name__ == "__main__":
+    main()
